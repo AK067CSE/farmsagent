@@ -842,6 +842,10 @@ async def _call_unified_agent(text, image_bytes, image_mime, ss, ms, runner, run
             if loc:
                 st.session_state.default_location = loc
 
+        # Always get temporal context for agent
+        temporal_data = get_location_datetime(st.session_state.default_location)
+        temporal_context = f"CURRENT CONTEXT: Date: {temporal_data.get('date', 'Unknown')}, Month: {temporal_data.get('month', 'Unknown')}, Season: {temporal_data.get('season', 'Unknown')}, Location: {st.session_state.default_location}\n\n"
+
         tool_ctx = ""
         if not image_bytes:
             if runner_weather and _needs_weather(text):
@@ -866,9 +870,16 @@ async def _call_unified_agent(text, image_bytes, image_mime, ss, ms, runner, run
         routed_text = text
         if tool_ctx:
             routed_text = (
-                "Use the following tool results as ground-truth context. "
-                "Do not mention tools or sources unless the user explicitly asks.\n\n"
+                "Use the following tool results and context as ground-truth. "
+                "Do not mention tools or sources unless user explicitly asks.\n\n"
+                f"{temporal_context}"
                 f"{tool_ctx}USER QUESTION:\n{text}"
+            )
+        else:
+            # Even without tools, provide temporal context
+            routed_text = (
+                f"{temporal_context}"
+                f"USER QUESTION:\n{text}"
             )
 
         parts = [genai_types.Part(text=routed_text)]
